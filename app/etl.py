@@ -86,6 +86,13 @@ def clean_datetime(value):
     return pd.to_datetime(value, utc=True).to_pydatetime()
 
 
+def first_existing(row, keys):
+    for key in keys:
+        if key in row and none_if_blank(row.get(key)) is not None:
+            return row.get(key)
+    return None
+
+
 def read_tables_from_page(page: Page) -> List[pd.DataFrame]:
     html = page.content()
 
@@ -111,8 +118,11 @@ def scrape_reference_tables(page):
     def click_tab_and_read_table(tab_name: str):
         print(f"Opening reference tab: {tab_name}")
 
-        # Click tab by visible text.
-        page.get_by_text(tab_name, exact=True).click()
+        try:
+            page.get_by_text(tab_name, exact=True).click()
+        except Exception:
+            page.locator(f"text={tab_name}").first.click()
+
         page.wait_for_timeout(500)
 
         tables = read_tables_from_page(page)
@@ -128,6 +138,8 @@ def scrape_reference_tables(page):
     room_types = click_tab_and_read_table("Room types")
     market_codes = click_tab_and_read_table("Markets")
     channel_codes = click_tab_and_read_table("Channels")
+    rate_plans = click_tab_and_read_table("Rate plans")
+    macro_group_history = click_tab_and_read_table("Macro history")
 
     required_room_cols = {"space_type", "room_class", "display_name", "number_of_rooms"}
     required_market_cols = {"market_code", "market_name", "macro_group", "description"}
@@ -152,6 +164,8 @@ def scrape_reference_tables(page):
         "room_types": room_types,
         "market_codes": market_codes,
         "channel_codes": channel_codes,
+        "rate_plans": rate_plans,
+        "macro_group_history": macro_group_history,
     }
 
 
@@ -160,7 +174,7 @@ def scrape_reference_tables(page):
 # -----------------------------
 
 def get_reservation_links_on_current_page(page: Page) -> List[str]:
-    links = page.locator('a[href^="/reservations/R"]').evaluate_all(
+    links = page.locator('a[href^="/reservations/"]').evaluate_all(
         """els => els.map(a => a.getAttribute('href'))"""
     )
 
@@ -313,6 +327,40 @@ def scrape_reservation_detail(page: Page, reservation_url: str) -> List[Dict[str
 
     return records
 
+def scrape_verify_page(page: Page) -> Dict[str, Any]:
+    verify_url = urljoin(BASE_URL, "/verify")
+    page.goto(verify_url, wait_until="networkidle")
+    page.wait_for_timeout(500)
+
+    body_text = page.locator("body").inner_text()
+
+    print("\nVERIFY PAGE TEXT")
+    print(body_text)
+
+    lines = [line.strip() for line in body_text.splitlines() if line.strip()]
+
+    def value_after(label: str):
+        for i, line in enumerate(lines):
+            if line == label and i + 1 < len(lines):
+                return lines[i + 1]
+        return None
+
+    verify_data = {
+        "dataset_revision": none_if_blank(value_after("dataset_revision")),
+        "total_stay_rows": clean_int(value_after("total_stay_rows")),
+        "total_reservations": clean_int(value_after("total_reservations")),
+        "posted_otb_total_revenue": clean_decimal(value_after("posted_total_revenue_before_tax")),
+        "posted_otb_room_revenue": clean_decimal(value_after("posted_room_revenue_before_tax")),
+        "reservation_stay_status_sha256": none_if_blank(
+            value_after("reservation_stay_status_sha256")
+        ),
+    }
+
+    print("\nParsed verify data:")
+    print(verify_data)
+
+    return verify_data
+
 
 # -----------------------------
 # Transform lookup tables
@@ -357,6 +405,54 @@ def transform_channel_codes(df: pd.DataFrame) -> List[Dict[str, Any]]:
         })
 
     return rows
+
+def transform_rate_plans(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    rows = []
+
+    for _, row in df.iterrows():
+        rate_plan_code = none_if_blank(row.get("rate_plan_code"))
+        plan_family = none_if_blank(row.get("plan_family"))
+        is_commissionable = none_if_blank(row.get("is_commissionable"))
+
+        rows.append({
+            "rate_plan_code": rate_plan_code,
+            "rate_plan_name": rate_plan_code,
+            "rate_plan_group": plan_family,
+            "description": (
+                f"Commissionable: {is_commissionable}"
+                if is_commissionable is not None
+                else None
+            ),
+        })
+
+    return [r for r in rows if r["rate_plan_code"] is not None]
+
+
+def transform_macro_group_history(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    rows = []
+
+    for _, row in df.iterrows():
+        rows.append({
+            "market_code": none_if_blank(first_existing(row, [
+                "market_code", "code"
+            ])),
+            "macro_group": none_if_blank(first_existing(row, [
+                "macro_group", "new_macro_group", "group"
+            ])),
+            "effective_from": clean_date(first_existing(row, [
+                "effective_from", "from_date", "start_date", "effective_start", "valid_from"
+            ])),
+            "effective_to": clean_date(first_existing(row, [
+                "effective_to", "to_date", "end_date", "effective_end", "valid_to"
+            ])),
+        })
+
+    return [
+        r for r in rows
+        if r["market_code"] is not None
+        and r["macro_group"] is not None
+        and r["effective_from"] is not None
+    ]
 
 
 # -----------------------------
@@ -424,6 +520,17 @@ def transform_reservations(raw_records: List[Dict[str, Any]]) -> List[Dict[str, 
 
             "company_name": none_if_blank(r.get("company_name")),
             "travel_agent_name": none_if_blank(r.get("travel_agent_name")),
+            "financial_status": none_if_blank(first_existing(r, [
+    "financial_status",
+    "Financial status",
+    "Financial Status",
+])),
+
+"property_date": clean_date(first_existing(r, [
+    "property_date",
+    "Property date",
+    "Property Date",
+])),
         }
 
         if row["stay_date"] is None:
@@ -456,7 +563,10 @@ def truncate_tables():
         reservations_hackathon,
         room_type_lookup,
         market_code_lookup,
-        channel_code_lookup
+        channel_code_lookup,
+        rate_plan_lookup,
+        macro_group_history,
+        dataset_verification
     RESTART IDENTITY CASCADE;
     """
 
@@ -498,6 +608,50 @@ def load_channel_codes(rows: List[Dict[str, Any]]):
 
     insert_many(sql, rows)
 
+def load_rate_plans(rows: List[Dict[str, Any]]):
+    sql = """
+    INSERT INTO rate_plan_lookup
+    (rate_plan_code, rate_plan_name, rate_plan_group, description)
+    VALUES
+    (%(rate_plan_code)s, %(rate_plan_name)s, %(rate_plan_group)s, %(description)s)
+    """
+
+    insert_many(sql, rows)
+
+
+def load_macro_group_history(rows: List[Dict[str, Any]]):
+    sql = """
+    INSERT INTO macro_group_history
+    (market_code, macro_group, effective_from, effective_to)
+    VALUES
+    (%(market_code)s, %(macro_group)s, %(effective_from)s, %(effective_to)s)
+    """
+
+    insert_many(sql, rows)
+
+def load_dataset_verification(verify_data: Dict[str, Any]):
+    sql = """
+    INSERT INTO dataset_verification
+    (
+        dataset_revision,
+        total_stay_rows,
+        total_reservations,
+        posted_otb_total_revenue,
+        posted_otb_room_revenue,
+        reservation_stay_status_sha256
+    )
+    VALUES
+    (
+        %(dataset_revision)s,
+        %(total_stay_rows)s,
+        %(total_reservations)s,
+        %(posted_otb_total_revenue)s,
+        %(posted_otb_room_revenue)s,
+        %(reservation_stay_status_sha256)s
+    )
+    """
+
+    insert_many(sql, [verify_data])
 
 def load_reservations(rows: List[Dict[str, Any]]):
     sql = """
@@ -509,6 +663,8 @@ def load_reservations(rows: List[Dict[str, Any]]):
         departure_date,
         stay_date,
         reservation_status,
+        financial_status,
+        property_date,
         create_datetime,
         cancellation_datetime,
         guest_country,
@@ -536,6 +692,8 @@ def load_reservations(rows: List[Dict[str, Any]]):
         %(departure_date)s,
         %(stay_date)s,
         %(reservation_status)s,
+        %(financial_status)s,
+        %(property_date)s,
         %(create_datetime)s,
         %(cancellation_datetime)s,
         %(guest_country)s,
@@ -564,7 +722,10 @@ def load_all(
     room_types: List[Dict[str, Any]],
     market_codes: List[Dict[str, Any]],
     channel_codes: List[Dict[str, Any]],
+    rate_plans: List[Dict[str, Any]],
+    macro_group_history: List[Dict[str, Any]],
     reservations: List[Dict[str, Any]],
+    verify_data: Dict[str, Any],
 ):
     truncate_tables()
 
@@ -577,8 +738,17 @@ def load_all(
     print("Loading channel_code_lookup...")
     load_channel_codes(channel_codes)
 
+    print("Loading rate_plan_lookup...")
+    load_rate_plans(rate_plans)
+
+    print("Loading macro_group_history...")
+    load_macro_group_history(macro_group_history)
+
     print("Loading reservations_hackathon...")
     load_reservations(reservations)
+
+    print("Loading dataset_verification...")
+    load_dataset_verification(verify_data)
 
 
 # -----------------------------
@@ -589,31 +759,33 @@ def verify_load() -> Dict[str, Any]:
     checks = {}
 
     queries = {
-        "total_stay_rows": "SELECT COUNT(*) AS value FROM reservations_hackathon",
-        "total_reservations": "SELECT COUNT(DISTINCT reservation_id) AS value FROM reservations_hackathon",
-        "room_type_lookup": "SELECT COUNT(*) AS value FROM room_type_lookup",
-        "market_code_lookup": "SELECT COUNT(*) AS value FROM market_code_lookup",
-        "channel_code_lookup": "SELECT COUNT(*) AS value FROM channel_code_lookup",
-        "duplicate_reservation_stay_ids": """
-            SELECT COUNT(*) AS value
-            FROM (
-                SELECT reservation_stay_id
-                FROM reservations_hackathon
-                GROUP BY reservation_stay_id
-                HAVING COUNT(*) > 1
-            ) x
-        """,
-        "missing_stay_dates": """
-            SELECT COUNT(*) AS value
+    "total_stay_rows": "SELECT COUNT(*) AS value FROM reservations_hackathon",
+    "total_reservations": "SELECT COUNT(DISTINCT reservation_id) AS value FROM reservations_hackathon",
+    "room_type_lookup": "SELECT COUNT(*) AS value FROM room_type_lookup",
+    "market_code_lookup": "SELECT COUNT(*) AS value FROM market_code_lookup",
+    "channel_code_lookup": "SELECT COUNT(*) AS value FROM channel_code_lookup",
+    "rate_plan_lookup": "SELECT COUNT(*) AS value FROM rate_plan_lookup",
+    "macro_group_history": "SELECT COUNT(*) AS value FROM macro_group_history",
+    "duplicate_reservation_stay_ids": """
+        SELECT COUNT(*) AS value
+        FROM (
+            SELECT reservation_stay_id
             FROM reservations_hackathon
-            WHERE stay_date IS NULL
-        """,
-        "missing_total_revenue": """
-            SELECT COUNT(*) AS value
-            FROM reservations_hackathon
-            WHERE daily_total_revenue_before_tax IS NULL
-        """,
-    }
+            GROUP BY reservation_stay_id
+            HAVING COUNT(*) > 1
+        ) x
+    """,
+    "missing_stay_dates": """
+        SELECT COUNT(*) AS value
+        FROM reservations_hackathon
+        WHERE stay_date IS NULL
+    """,
+    "missing_total_revenue": """
+        SELECT COUNT(*) AS value
+        FROM reservations_hackathon
+        WHERE daily_total_revenue_before_tax IS NULL
+    """,
+}
 
     for name, query in queries.items():
         checks[name] = fetch_all(query)[0]["value"]
@@ -634,6 +806,7 @@ def run_etl():
         page = browser.new_page()
 
         reference = scrape_reference_tables(page)
+        verify_data = scrape_verify_page(page)
         reservation_links = scrape_all_reservation_links(page)
 
         print(f"\nTotal reservation links found: {len(reservation_links)}")
@@ -656,13 +829,26 @@ def run_etl():
     channel_codes = transform_channel_codes(reference["channel_codes"])
     reservations = transform_reservations(raw_reservation_records)
 
+    rate_plans = transform_rate_plans(reference["rate_plans"])
+    macro_group_history = transform_macro_group_history(reference["macro_group_history"])
+
     print(f"Transformed room types: {len(room_types)}")
     print(f"Transformed market codes: {len(market_codes)}")
     print(f"Transformed channel codes: {len(channel_codes)}")
     print(f"Transformed reservation stay rows: {len(reservations)}")
+    print(f"Transformed rate plans: {len(rate_plans)}")
+    print(f"Transformed macro group history rows: {len(macro_group_history)}")
 
     print("Loading data...")
-    load_all(room_types, market_codes, channel_codes, reservations)
+    load_all(
+        room_types,
+        market_codes,
+        channel_codes,
+        rate_plans,
+        macro_group_history,
+        reservations,
+        verify_data,
+)
 
     print("Verifying database...")
     checks = verify_load()

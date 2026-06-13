@@ -194,7 +194,7 @@ def get_market_mix():
     SELECT
         r.market_code,
         m.market_name,
-        m.macro_group,
+        COALESCE(mgh.macro_group, m.macro_group, 'Unknown') AS macro_group,
         COUNT(DISTINCT r.reservation_id) AS reservations,
         SUM(r.number_of_spaces) AS room_nights,
         ROUND(SUM(r.daily_total_revenue_before_tax), 2) AS total_revenue,
@@ -206,14 +206,132 @@ def get_market_mix():
     FROM reservations_hackathon r
     LEFT JOIN market_code_lookup m
         ON r.market_code = m.market_code
+    LEFT JOIN macro_group_history mgh
+        ON r.market_code = mgh.market_code
+       AND r.stay_date >= mgh.effective_from
+       AND (
+            mgh.effective_to IS NULL
+            OR r.stay_date < mgh.effective_to
+       )
     WHERE r.reservation_status = 'Reserved'
       AND r.stay_date >= CURRENT_DATE
-    GROUP BY r.market_code, m.market_name, m.macro_group
+    GROUP BY
+        r.market_code,
+        m.market_name,
+        COALESCE(mgh.macro_group, m.macro_group, 'Unknown')
     ORDER BY total_revenue DESC;
     """
 
     return {
         "metric": "market_mix",
-        "assumption": "Uses future reserved stay dates only and groups business by market code.",
+        "assumption": "Uses future reserved stay dates. Macro group is selected using macro_group_history by stay_date, falling back to market_code_lookup.",
+        "data": fetch_all(query),
+    }
+
+def get_financial_status_summary():
+    query = """
+    SELECT
+        COALESCE(financial_status, 'Unknown') AS financial_status,
+        COUNT(DISTINCT reservation_id) AS reservations,
+        SUM(number_of_spaces) AS room_nights,
+        ROUND(SUM(daily_room_revenue_before_tax), 2) AS room_revenue,
+        ROUND(SUM(daily_total_revenue_before_tax), 2) AS total_revenue,
+        ROUND(
+            SUM(daily_room_revenue_before_tax)
+            / NULLIF(SUM(number_of_spaces), 0),
+            2
+        ) AS adr
+    FROM reservations_hackathon
+    WHERE reservation_status = 'Reserved'
+      AND stay_date >= CURRENT_DATE
+    GROUP BY COALESCE(financial_status, 'Unknown')
+    ORDER BY total_revenue DESC;
+    """
+
+    return {
+        "metric": "financial_status_summary",
+        "assumption": "Uses future reserved stays and groups revenue by financial_status, such as Posted or Provisional.",
+        "data": fetch_all(query),
+    }
+
+
+def get_rate_plan_performance():
+    query = """
+    SELECT
+        r.rate_plan_code,
+        COALESCE(rp.rate_plan_name, r.rate_plan_code) AS rate_plan_name,
+        COALESCE(
+            rp.rate_plan_group,
+            CASE
+                WHEN r.rate_plan_code ILIKE '%%GROUP%%' THEN 'Group'
+                WHEN r.rate_plan_code ILIKE '%%CORP%%' THEN 'Corporate'
+                WHEN r.rate_plan_code ILIKE '%%BOOK%%' THEN 'OTA'
+                WHEN r.rate_plan_code ILIKE '%%EXP%%' THEN 'OTA'
+                WHEN r.rate_plan_code ILIKE '%%BAR%%' THEN 'Retail'
+                WHEN r.rate_plan_code ILIKE '%%PROM%%' THEN 'Promotion'
+                WHEN r.rate_plan_code ILIKE '%%FIT%%' THEN 'Retail'
+                WHEN r.rate_plan_code ILIKE '%%DLY%%' THEN 'Retail'
+                WHEN r.rate_plan_code ILIKE '%%OCH%%' THEN 'Direct'
+                ELSE 'Unknown'
+            END
+        ) AS rate_plan_group,
+        COUNT(DISTINCT r.reservation_id) AS reservations,
+        SUM(r.number_of_spaces) AS room_nights,
+        ROUND(SUM(r.daily_room_revenue_before_tax), 2) AS room_revenue,
+        ROUND(SUM(r.daily_total_revenue_before_tax), 2) AS total_revenue,
+        ROUND(
+            SUM(r.daily_room_revenue_before_tax)
+            / NULLIF(SUM(r.number_of_spaces), 0),
+            2
+        ) AS adr
+    FROM reservations_hackathon r
+    LEFT JOIN rate_plan_lookup rp
+        ON r.rate_plan_code = rp.rate_plan_code
+    WHERE r.reservation_status = 'Reserved'
+      AND r.stay_date >= CURRENT_DATE
+    GROUP BY
+        r.rate_plan_code,
+        rp.rate_plan_name,
+        rp.rate_plan_group,
+        CASE
+            WHEN r.rate_plan_code ILIKE '%%GROUP%%' THEN 'Group'
+            WHEN r.rate_plan_code ILIKE '%%CORP%%' THEN 'Corporate'
+            WHEN r.rate_plan_code ILIKE '%%BOOK%%' THEN 'OTA'
+            WHEN r.rate_plan_code ILIKE '%%EXP%%' THEN 'OTA'
+            WHEN r.rate_plan_code ILIKE '%%BAR%%' THEN 'Retail'
+            WHEN r.rate_plan_code ILIKE '%%PROM%%' THEN 'Promotion'
+            WHEN r.rate_plan_code ILIKE '%%FIT%%' THEN 'Retail'
+            WHEN r.rate_plan_code ILIKE '%%DLY%%' THEN 'Retail'
+            WHEN r.rate_plan_code ILIKE '%%OCH%%' THEN 'Direct'
+            ELSE 'Unknown'
+        END
+    ORDER BY total_revenue DESC;
+    """
+
+    return {
+        "metric": "rate_plan_performance",
+        "assumption": "Uses future reserved stays. Joins to rate_plan_lookup, then derives fallback group from rate_plan_code when lookup metadata is missing.",
+        "data": fetch_all(query),
+    }
+
+
+def get_dataset_verification_latest():
+    query = """
+    SELECT
+        dataset_revision,
+        total_stay_rows,
+        total_reservations,
+        posted_otb_total_revenue,
+        posted_otb_room_revenue,
+        reservation_stay_status_sha256,
+        scraped_at
+    FROM dataset_verification
+    ORDER BY scraped_at DESC
+    LIMIT 1;
+    """
+
+    return {
+        "metric": "dataset_verification_latest",
+        "assumption": "Shows the latest captured verification metadata from the data portal, if ETL has stored it.",
         "data": fetch_all(query),
     }

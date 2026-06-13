@@ -9,6 +9,9 @@ from app.metrics import (
     get_group_business_summary,
     get_pickup_last_7_days,
     get_market_mix,
+    get_financial_status_summary,
+    get_rate_plan_performance,
+    get_dataset_verification_latest,
 )
 
 
@@ -61,6 +64,24 @@ def market_mix_tool() -> dict:
 
 
 @tool
+def financial_status_summary_tool() -> dict:
+    """Use this when the user asks about Posted vs Provisional revenue, financial status, confirmed revenue, provisional revenue, accounting status, or posted OTB."""
+    return get_financial_status_summary()
+
+
+@tool
+def rate_plan_performance_tool() -> dict:
+    """Use this when the user asks about rate plans, rate codes, pricing plans, packages, BAR, promotional rates, rate plan ADR, or rate plan revenue."""
+    return get_rate_plan_performance()
+
+
+@tool
+def dataset_verification_tool() -> dict:
+    """Use this when the user asks whether the database matches the source site, dataset revision, verification status, checksums, posted OTB aggregates, or scrape verification."""
+    return get_dataset_verification_latest()
+
+
+@tool
 def refresh_database_tool(reason: str) -> dict:
     """
     Request approval to refresh/reload the hotel database by running ETL.
@@ -84,5 +105,8 @@ REVENUE_TOOLS = [
     group_business_tool,
     pickup_last_7_days_tool,
     market_mix_tool,
+    financial_status_summary_tool,
+    rate_plan_performance_tool,
+    dataset_verification_tool,
     refresh_database_tool,
 ]
