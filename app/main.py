@@ -84,7 +84,9 @@ def chat(request: ChatRequest):
         "answer": result["answer"],
         "tools_used": result.get("tools_used", []),
         "skills_used": result.get("skills_used", []),
+        "subagents_used": result.get("subagents_used", []),
         "activity": result.get("activity", []),
+        "thread_id": result.get("thread_id"),
     }
 
 

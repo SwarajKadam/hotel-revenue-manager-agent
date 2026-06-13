@@ -231,3 +231,7 @@ button:disabled {
 .logoutButton:hover {
   border-color: #38bdf8;
 }
+.subagentPill {
+  border-color: #facc15;
+  color: #fde68a;
+}

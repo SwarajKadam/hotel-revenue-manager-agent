@@ -60,6 +60,21 @@ def market_mix_tool() -> dict:
     return get_market_mix()
 
 
+@tool
+def refresh_database_tool(reason: str) -> dict:
+    """
+    Request approval to refresh/reload the hotel database by running ETL.
+
+    Use this only when the user explicitly asks to refresh data, reload the database,
+    rerun ETL, scrape the data site again, or update the database.
+    """
+    return {
+        "status": "approval_required",
+        "message": "Refreshing the database requires human approval before running ETL.",
+        "reason": reason,
+    }
+
+
 REVENUE_TOOLS = [
     revenue_by_month_tool,
     channel_mix_tool,
@@ -69,4 +84,5 @@ REVENUE_TOOLS = [
     group_business_tool,
     pickup_last_7_days_tool,
     market_mix_tool,
+    refresh_database_tool,
 ]

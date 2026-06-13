@@ -22,12 +22,14 @@ function App() {
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
+  
   const [message, setMessage] = useState("");
   const [answer, setAnswer] = useState("");
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [toolsUsed, setToolsUsed] = useState([]);
   const [skillsUsed, setSkillsUsed] = useState([]);
+  const [subagentsUsed, setSubagentsUsed] = useState([]);
 
   function handleLogin() {
     if (passwordInput === APP_PASSWORD) {
@@ -56,13 +58,14 @@ function App() {
     setQuestion(finalQuestion);
     setToolsUsed([]);
     setSkillsUsed([]);
-
+    setSubagentsUsed([]);
     try {
       const data = await askAgent(finalQuestion);
 
       setAnswer(data.answer);
       setToolsUsed(data.tools_used || []);
       setSkillsUsed(data.skills_used || []);
+      setSubagentsUsed(data.subagents_used || []);
       setMessage("");
     } catch (error) {
       console.error(error);
@@ -160,7 +163,7 @@ function App() {
             <p className="answerLabel">Question</p>
             <h2>{question}</h2>
 
-            {!loading && (toolsUsed.length > 0 || skillsUsed.length > 0) && (
+            {!loading && (toolsUsed.length > 0 || skillsUsed.length > 0 || subagentsUsed.length > 0) && (
               <div className="activityBox">
                 {toolsUsed.length > 0 && (
                   <div>
@@ -187,6 +190,18 @@ function App() {
                     </div>
                   </div>
                 )}
+                {subagentsUsed.length > 0 && (
+  <div>
+    <p className="activityTitle">Subagents used</p>
+    <div className="pillRow">
+      {subagentsUsed.map((agent) => (
+        <span className="pill subagentPill" key={agent}>
+          {agent}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
               </div>
             )}
 
