@@ -3,6 +3,7 @@ import re
 from decimal import Decimal
 from typing import Any, Dict, List
 from urllib.parse import urljoin
+import hashlib
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -103,32 +104,54 @@ def read_tables_from_page(page: Page) -> List[pd.DataFrame]:
 # Extract reference tables
 # -----------------------------
 
-def scrape_reference_tables(page: Page) -> Dict[str, pd.DataFrame]:
-    print("Scraping reference tables...")
+def scrape_reference_tables(page):
+    reference_url = urljoin(BASE_URL, "/reference")
+    page.goto(reference_url, wait_until="networkidle")
 
-    page.goto(f"{BASE_URL}/reference", wait_until="networkidle")
-    page.wait_for_timeout(1000)
+    def click_tab_and_read_table(tab_name: str):
+        print(f"Opening reference tab: {tab_name}")
 
-    tables = read_tables_from_page(page)
+        # Click tab by visible text.
+        page.get_by_text(tab_name, exact=True).click()
+        page.wait_for_timeout(500)
 
-    if len(tables) != 3:
-        print("Reference tables found:", len(tables))
-        for i, table in enumerate(tables):
-            print(i, table.columns.tolist())
-        raise RuntimeError("Expected 3 reference tables.")
+        tables = read_tables_from_page(page)
 
-    room_type_df = tables[0]
-    market_code_df = tables[1]
-    channel_code_df = tables[2]
+        if not tables:
+            raise RuntimeError(f"No table found after clicking tab: {tab_name}")
 
-    print(f"Room types scraped: {len(room_type_df)}")
-    print(f"Market codes scraped: {len(market_code_df)}")
-    print(f"Channel codes scraped: {len(channel_code_df)}")
+        print(f"{tab_name} tables found: {len(tables)}")
+        print(f"{tab_name} columns: {tables[0].columns.tolist()}")
+
+        return tables[0]
+
+    room_types = click_tab_and_read_table("Room types")
+    market_codes = click_tab_and_read_table("Markets")
+    channel_codes = click_tab_and_read_table("Channels")
+
+    required_room_cols = {"space_type", "room_class", "display_name", "number_of_rooms"}
+    required_market_cols = {"market_code", "market_name", "macro_group", "description"}
+    required_channel_cols = {"channel_code", "channel_name", "channel_group"}
+
+    if not required_room_cols.issubset(set(room_types.columns)):
+        raise RuntimeError(
+            f"Room types table has wrong columns: {room_types.columns.tolist()}"
+        )
+
+    if not required_market_cols.issubset(set(market_codes.columns)):
+        raise RuntimeError(
+            f"Markets table has wrong columns: {market_codes.columns.tolist()}"
+        )
+
+    if not required_channel_cols.issubset(set(channel_codes.columns)):
+        raise RuntimeError(
+            f"Channels table has wrong columns: {channel_codes.columns.tolist()}"
+        )
 
     return {
-        "room_types": room_type_df,
-        "market_codes": market_code_df,
-        "channel_codes": channel_code_df,
+        "room_types": room_types,
+        "market_codes": market_codes,
+        "channel_codes": channel_codes,
     }
 
 
@@ -342,14 +365,22 @@ def transform_channel_codes(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
 def make_reservation_stay_id(reservation_id: str, night_index: int) -> int:
     """
-    R0001 night 1 -> 101
-    R0001 night 2 -> 102
-    R0250 night 1 -> 25001
+    Stable BIGINT primary key generated from reservation_id + night_index.
 
-    Stable bigint primary key generated from reservation_id + night index.
+    This works for both normal reservation IDs such as:
+    - R0001
+    - R0250
+    - R5100
+
+    and edge-case IDs such as:
+    - RES-EDGE-001
+    - RES-ZEPHYR-7F3A
     """
-    number = int(reservation_id.replace("R", ""))
-    return number * 100 + night_index
+    raw_key = f"{reservation_id}-{night_index}"
+    hashed = hashlib.md5(raw_key.encode("utf-8")).hexdigest()
+
+    # First 15 hex characters safely fit inside PostgreSQL BIGINT.
+    return int(hashed[:15], 16)
 
 
 def transform_reservations(raw_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
