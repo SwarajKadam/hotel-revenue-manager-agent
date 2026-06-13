@@ -17,6 +17,8 @@ function App() {
   const [answer, setAnswer] = useState("");
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toolsUsed, setToolsUsed] = useState([]);
+  const [skillsUsed, setSkillsUsed] = useState([]);
 
   async function handleAsk(customQuestion) {
     const finalQuestion = customQuestion || message;
@@ -26,10 +28,15 @@ function App() {
     setLoading(true);
     setAnswer("");
     setQuestion(finalQuestion);
+    setToolsUsed([]);
+    setSkillsUsed([]);
 
     try {
       const data = await askAgent(finalQuestion);
+
       setAnswer(data.answer);
+      setToolsUsed(data.tools_used || []);
+      setSkillsUsed(data.skills_used || []);
       setMessage("");
     } catch (error) {
       console.error(error);
@@ -88,14 +95,44 @@ function App() {
             <p className="answerLabel">Question</p>
             <h2>{question}</h2>
 
-            <p className="answerLabel">Answer</p>
-            {loading ? (
-              <p className="loading">Analyzing hotel revenue data...</p>
-            ) : (
-              <div className="answerText">
-                <ReactMarkdown>{answer}</ReactMarkdown>
-              </div>
-            )}
+            {!loading && (toolsUsed.length > 0 || skillsUsed.length > 0) && (
+  <div className="activityBox">
+    {toolsUsed.length > 0 && (
+      <div>
+        <p className="activityTitle">Tools used</p>
+        <div className="pillRow">
+          {toolsUsed.map((tool) => (
+            <span className="pill" key={tool}>
+              {tool}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {skillsUsed.length > 0 && (
+      <div>
+        <p className="activityTitle">Skills used</p>
+            <div className="pillRow">
+              {skillsUsed.map((skill) => (
+                <span className="pill skillPill" key={skill}>
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
+    <p className="answerLabel">Answer</p>
+    {loading ? (
+      <p className="loading">Analyzing hotel revenue data...</p>
+    ) : (
+      <div className="answerText">
+        <ReactMarkdown>{answer}</ReactMarkdown>
+      </div>
+    )}
           </section>
         )}
       </div>

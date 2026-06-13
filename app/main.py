@@ -77,11 +77,14 @@ def run_etl_endpoint():
 
 @app.post("/chat")
 def chat(request: ChatRequest):
-    answer = ask_agent(request.message)
+    result = ask_agent(request.message)
 
     return {
         "question": request.message,
-        "answer": answer,
+        "answer": result["answer"],
+        "tools_used": result.get("tools_used", []),
+        "skills_used": result.get("skills_used", []),
+        "activity": result.get("activity", []),
     }
 
 

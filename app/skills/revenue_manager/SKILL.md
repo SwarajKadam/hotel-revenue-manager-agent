@@ -1,45 +1,52 @@
+---
+name: revenue-manager
+description: Use this skill for hotel revenue performance questions involving on-the-books revenue, ADR, room nights, monthly performance, market mix, room type performance, group business, and commercial recommendations for a hotel GM.
+---
+
 # Revenue Manager Skill
 
-Use this skill when the user asks about hotel revenue performance, monthly revenue, room nights, ADR, market mix, room type performance, or business drivers.
+Use this skill when the user asks about hotel revenue performance, monthly revenue, room nights, ADR, market mix, room type performance, group business, or business drivers.
+
+## Core business rules
+
+- Use `stay_date` for hotel performance questions.
+- Exclude cancelled reservations unless the user asks about cancellations.
+- Reservation count means `COUNT(DISTINCT reservation_id)`.
+- Room nights means `SUM(number_of_spaces)`.
+- Room revenue means `SUM(daily_room_revenue_before_tax)`.
+- Total revenue means `SUM(daily_total_revenue_before_tax)`.
+- Do not confuse stay rows with reservations.
+- Always mention assumptions if the question is ambiguous.
 
 ## How to reason
 
-1. Always identify the relevant stay period first.
-2. Use stay_date-based metrics for hotel performance.
-3. Exclude cancelled reservations unless the user specifically asks about cancellations.
-4. Use reservation count, room nights, room revenue, total revenue, and ADR together.
-5. Do not judge performance only from revenue. Also consider room nights and ADR.
-6. When explaining performance, identify the biggest drivers:
+1. Identify the relevant stay period.
+2. Decide whether the question is about future on-the-books business, cancellations, pickup, or historical/STLY comparison.
+3. Use revenue, room nights, reservations, and ADR together.
+4. Identify the main business driver:
    - month
-   - room type
    - market segment
+   - room type
    - channel
-   - group/block business
+   - group/block demand
+5. Give a commercial recommendation, not only a metric.
 
-## Recommended tool usage
+## Tool guidance
 
-- Use `revenue_by_month_tool` for monthly revenue, room nights, ADR, and on-the-books performance.
-- Use `market_mix_tool` for segment-level drivers.
-- Use `room_type_adr_tool` for room type pricing and ADR comparison.
-- Use `group_business_tool` for group/block versus transient business.
+- Use `revenue_by_month_tool` for monthly OTB revenue and ADR.
+- Use `market_mix_tool` for market segment drivers.
+- Use `room_type_adr_tool` for room type pricing strength.
+- Use `group_business_tool` for group/block vs transient demand.
+- Use `channel_mix_tool` when channel contribution matters.
 
 ## Answer style
 
-Answer like a practical hotel revenue manager.
+Answer like a practical hotel revenue manager briefing a GM.
 
-The answer should include:
+Include:
 
-- direct summary
+- direct answer
 - key numbers
 - business interpretation
-- recommended action
-
-Avoid giving only raw data.
-
-## Example reasoning
-
-If one month has high revenue but low ADR, explain that demand may be volume-driven rather than price-driven.
-
-If Executive King has the highest ADR, mention that premium room types are stronger and may support rate protection.
-
-If MICE/group segments dominate, mention that the hotel should monitor group displacement risk and protect high-value transient demand.
+- risk or opportunity
+- one or two recommended actions

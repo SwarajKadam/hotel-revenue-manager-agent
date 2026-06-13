@@ -1,40 +1,44 @@
+---
+name: ota-analysis
+description: Use this skill for OTA dependency, Booking.com, Expedia, online travel agency risk, direct versus indirect bookings, channel mix, distribution strategy, and OTA commercial recommendations.
+---
+
 # OTA Analysis Skill
 
 Use this skill when the user asks about OTA dependency, Booking.com, Expedia, direct bookings, indirect bookings, channel risk, or distribution strategy.
 
+## Core business rules
+
+- OTA includes `market_code = OTA` and source names such as Booking.com or Expedia.
+- OTA is useful for demand generation but can create margin risk due to commission.
+- Do not say OTA is bad automatically. Judge the risk from revenue share, room-night share, and business context.
+- Compare OTA against Non-OTA.
+
 ## How to reason
 
-1. Compare OTA revenue share with non-OTA revenue share.
-2. Compare OTA room nights with non-OTA room nights.
-3. Explain both benefits and risks.
-4. OTA demand is useful for occupancy, but over-dependence can reduce profitability because OTA bookings often carry commission costs.
-5. If OTA share is high, recommend actions to increase direct bookings.
-6. If OTA share is low or moderate, recommend using OTA selectively for need periods.
+1. Check OTA revenue share.
+2. Check OTA room nights and reservations.
+3. Compare OTA with Non-OTA.
+4. Explain whether dependence is low, moderate, or high.
+5. Recommend direct-channel actions only if useful.
 
-## Recommended tool usage
+## Tool guidance
 
 - Use `ota_dependency_tool` for OTA vs Non-OTA split.
-- Use `channel_mix_tool` for channel-level contribution.
-- Use `market_mix_tool` if the user asks which segments are driving OTA or retail demand.
-
-## Answer style
-
-The answer should include:
-
-- OTA share
-- Non-OTA share
-- business risk level
-- clear recommendation
+- Use `channel_mix_tool` for detailed channel contribution.
+- Use `market_mix_tool` if segment-level demand matters.
 
 ## Recommendation examples
 
 If OTA share is high:
-- strengthen direct booking offers
-- protect direct inventory during high-demand periods
-- use OTA mainly for low-demand dates
-- review rate parity and package strategy
 
-If OTA share is moderate:
+- strengthen direct booking offers
+- protect direct inventory on high-demand dates
+- avoid unnecessary OTA discounting
+- use OTA mainly for low-demand periods
+
+If OTA share is moderate or low:
+
 - keep OTA active as a demand generator
-- avoid unnecessary discounting
-- push direct conversion through website and email offers
+- focus on direct conversion
+- avoid overcorrecting if OTA is not a major dependency

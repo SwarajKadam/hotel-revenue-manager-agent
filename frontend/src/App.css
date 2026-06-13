@@ -169,3 +169,40 @@ button:disabled {
   margin-top: 18px;
   margin-bottom: 10px;
 }
+.activityBox {
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 14px;
+  margin: 18px 0;
+}
+
+.activityTitle {
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 800;
+  margin: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pill {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.skillPill {
+  border-color: #38bdf8;
+  color: #bae6fd;
+}
