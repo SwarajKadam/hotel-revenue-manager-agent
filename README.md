@@ -6,6 +6,19 @@ The system scrapes reservation data from a JavaScript-rendered hotel data portal
 
 ---
 
+## Live Demo
+
+The project is deployed with the frontend on Vercel and the backend on Render.
+
+| Component        | Link                                                    |
+| ---------------- | ------------------------------------------------------- |
+| Frontend Demo    | https://hotel-revenue-manager-agent.vercel.app/         |
+| Backend API Docs | https://hotel-revenue-manager-backend.onrender.com/docs |
+
+A simple basic authentication layer is included on the frontend to restrict demo access. This is intentionally lightweight for demo purposes and does not use hidden URLs or a full production authentication system.
+
+---
+
 ## Project Overview
 
 Hotel revenue managers need to understand business performance across several dimensions:
@@ -40,6 +53,9 @@ The AI agent uses trusted backend tools and database metrics rather than inventi
 
 ## Key Features
 
+* Deployed React frontend on Vercel
+* Deployed FastAPI backend on Render
+* Simple frontend basic auth layer for demo access
 * Playwright-based web scraping for JavaScript-rendered reservation data
 * ETL pipeline to extract, clean, transform, and load reservation data
 * One-row-per-reservation-stay-date database design
@@ -85,7 +101,9 @@ React Frontend
 | Layer                  | Technology                         |
 | ---------------------- | ---------------------------------- |
 | Frontend               | React, Vite, Axios, React Markdown |
+| Frontend Deployment    | Vercel                             |
 | Backend                | FastAPI, Python                    |
+| Backend Deployment     | Render                             |
 | Database               | PostgreSQL                         |
 | Web Scraping           | Playwright                         |
 | AI Agent               | LangChain, OpenAI                  |
@@ -302,6 +320,12 @@ The backend exposes hotel revenue metrics through FastAPI and agent tools.
 
 ## API Endpoints
 
+Backend API docs are available here:
+
+```txt
+https://hotel-revenue-manager-backend.onrender.com/docs
+```
+
 | Endpoint                      | Purpose                           |
 | ----------------------------- | --------------------------------- |
 | `/health`                     | Checks whether backend is running |
@@ -367,6 +391,30 @@ Refresh the database.
 ---
 
 ## Example API Requests
+
+### Chat Endpoint
+
+```http
+POST /chat
+```
+
+Request body:
+
+```json
+{
+  "message": "Are we too dependent on OTA?"
+}
+```
+
+Response format:
+
+```json
+{
+  "question": "Are we too dependent on OTA?",
+  "answer": "...",
+  "tools_used": ["ota_dependency_tool"]
+}
+```
 
 ### Dataset Verification
 
@@ -475,6 +523,35 @@ Provisional revenue is much smaller and should be monitored because it may still
 
 ---
 
+## Deployment
+
+The application is deployed using:
+
+* **Vercel** for the React frontend
+* **Render** for the FastAPI backend
+* **PostgreSQL** for persistent storage
+
+### Deployed URLs
+
+```txt
+Frontend:
+https://hotel-revenue-manager-agent.vercel.app/
+
+Backend API Docs:
+https://hotel-revenue-manager-backend.onrender.com/docs
+```
+
+### Deployment Notes
+
+* The frontend communicates with the Render backend through the deployed API URL.
+* CORS is enabled on the backend to allow frontend-backend communication.
+* Environment variables are configured separately in Vercel and Render.
+* The frontend has a simple basic auth layer for demo access.
+* The backend API docs remain accessible for testing and inspection.
+* The basic auth layer is intentionally simple and is not intended as production-grade authentication.
+
+---
+
 ## Local Setup
 
 ### 1. Clone the project
@@ -578,13 +655,13 @@ ETL complete.
 uvicorn app.main:app --reload
 ```
 
-Backend runs at:
+Backend runs locally at:
 
 ```txt
 http://127.0.0.1:8000
 ```
 
-FastAPI docs:
+FastAPI docs locally:
 
 ```txt
 http://127.0.0.1:8000/docs
@@ -598,38 +675,10 @@ npm install
 npm run dev
 ```
 
-Frontend runs at:
+Frontend runs locally at:
 
 ```txt
 http://localhost:5173
-```
-
----
-
-## API Usage
-
-### Chat Endpoint
-
-```http
-POST /chat
-```
-
-Request body:
-
-```json
-{
-  "message": "Are we too dependent on OTA?"
-}
-```
-
-Response:
-
-```json
-{
-  "question": "Are we too dependent on OTA?",
-  "answer": "...",
-  "tools_used": ["ota_dependency_tool"]
-}
 ```
 
 ---
@@ -712,6 +761,9 @@ Completed:
 * AI revenue manager agent
 * `/chat` endpoint
 * React frontend
+* Simple frontend basic auth layer
+* Frontend deployment on Vercel
+* Backend deployment on Render
 * Verification tool routing
 * Rate plan performance tool
 * Posted vs provisional revenue tool
@@ -719,17 +771,16 @@ Completed:
 
 Remaining:
 
-* Deployment
 * Screenshots
-* Optional authentication
-* Final frontend polish
+* Optional production-grade authentication
 * Optional automated daily ETL refresh
+* Optional dashboard charts
 
 ---
 
 ## Future Improvements
 
-* Add authentication for deployed version
+* Add production-grade authentication
 * Add charts for monthly revenue and market mix
 * Add conversation history
 * Add downloadable revenue summary reports
