@@ -13,12 +13,38 @@ const exampleQuestions = [
 ];
 
 function App() {
+  const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || "demo123";
+
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    localStorage.getItem("hotel_agent_auth") === "true"
+  );
+
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
   const [message, setMessage] = useState("");
   const [answer, setAnswer] = useState("");
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [toolsUsed, setToolsUsed] = useState([]);
   const [skillsUsed, setSkillsUsed] = useState([]);
+
+  function handleLogin() {
+    if (passwordInput === APP_PASSWORD) {
+      localStorage.setItem("hotel_agent_auth", "true");
+      setIsAuthenticated(true);
+      setPasswordError("");
+    } else {
+      setPasswordError("Incorrect password.");
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("hotel_agent_auth");
+    setIsAuthenticated(false);
+    setPasswordInput("");
+    setPasswordError("");
+  }
 
   async function handleAsk(customQuestion) {
     const finalQuestion = customQuestion || message;
@@ -46,6 +72,41 @@ function App() {
     }
   }
 
+  if (!isAuthenticated) {
+    return (
+      <div className="page">
+        <div className="container">
+          <section className="card loginCard">
+            <p className="eyebrow">Protected Demo</p>
+            <h1>Hotel Revenue Manager Agent</h1>
+            <p className="subtitle">
+              Enter the demo password to access the revenue manager chat.
+            </p>
+
+            <div className="inputRow loginRow">
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => {
+                  setPasswordInput(e.target.value);
+                  setPasswordError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleLogin();
+                }}
+                placeholder="Enter password"
+              />
+
+              <button onClick={handleLogin}>Enter</button>
+            </div>
+
+            {passwordError && <p className="errorText">{passwordError}</p>}
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="container">
@@ -56,6 +117,10 @@ function App() {
             Ask business questions about revenue, ADR, OTA dependency,
             cancellations, pickup, room types, and market mix.
           </p>
+
+          <button className="logoutButton" onClick={handleLogout}>
+            Logout
+          </button>
         </header>
 
         <section className="card">
@@ -96,43 +161,44 @@ function App() {
             <h2>{question}</h2>
 
             {!loading && (toolsUsed.length > 0 || skillsUsed.length > 0) && (
-  <div className="activityBox">
-    {toolsUsed.length > 0 && (
-      <div>
-        <p className="activityTitle">Tools used</p>
-        <div className="pillRow">
-          {toolsUsed.map((tool) => (
-            <span className="pill" key={tool}>
-              {tool}
-            </span>
-          ))}
-        </div>
-      </div>
-    )}
+              <div className="activityBox">
+                {toolsUsed.length > 0 && (
+                  <div>
+                    <p className="activityTitle">Tools used</p>
+                    <div className="pillRow">
+                      {toolsUsed.map((tool) => (
+                        <span className="pill" key={tool}>
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-    {skillsUsed.length > 0 && (
-      <div>
-        <p className="activityTitle">Skills used</p>
-            <div className="pillRow">
-              {skillsUsed.map((skill) => (
-                <span className="pill skillPill" key={skill}>
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )}
+                {skillsUsed.length > 0 && (
+                  <div>
+                    <p className="activityTitle">Skills used</p>
+                    <div className="pillRow">
+                      {skillsUsed.map((skill) => (
+                        <span className="pill skillPill" key={skill}>
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-    <p className="answerLabel">Answer</p>
-    {loading ? (
-      <p className="loading">Analyzing hotel revenue data...</p>
-    ) : (
-      <div className="answerText">
-        <ReactMarkdown>{answer}</ReactMarkdown>
-      </div>
-    )}
+            <p className="answerLabel">Answer</p>
+
+            {loading ? (
+              <p className="loading">Analyzing hotel revenue data...</p>
+            ) : (
+              <div className="answerText">
+                <ReactMarkdown>{answer}</ReactMarkdown>
+              </div>
+            )}
           </section>
         )}
       </div>

@@ -206,3 +206,28 @@ button:disabled {
   border-color: #38bdf8;
   color: #bae6fd;
 }
+.loginCard {
+  max-width: 620px;
+  margin: 80px auto;
+  text-align: center;
+}
+
+.loginRow {
+  margin-top: 24px;
+}
+
+.errorText {
+  color: #f87171;
+  margin-top: 12px;
+}
+
+.logoutButton {
+  margin-top: 18px;
+  background: #1e293b;
+  color: #e5e7eb;
+  border: 1px solid #334155;
+}
+
+.logoutButton:hover {
+  border-color: #38bdf8;
+}
