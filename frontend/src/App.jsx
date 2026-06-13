@@ -2,6 +2,7 @@ import { useState } from "react";
 import { askAgent } from "./api";
 import "./App.css";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const exampleQuestions = [
   "What revenue is on the books by month?",
@@ -22,7 +23,6 @@ function App() {
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  
   const [message, setMessage] = useState("");
   const [answer, setAnswer] = useState("");
   const [question, setQuestion] = useState("");
@@ -59,6 +59,7 @@ function App() {
     setToolsUsed([]);
     setSkillsUsed([]);
     setSubagentsUsed([]);
+
     try {
       const data = await askAgent(finalQuestion);
 
@@ -114,20 +115,27 @@ function App() {
     <div className="page">
       <div className="container">
         <header className="header">
-          <p className="eyebrow">Hotel Revenue Intelligence</p>
-          <h1>AI Revenue Manager Agent</h1>
-          <p className="subtitle">
-            Ask business questions about revenue, ADR, OTA dependency,
-            cancellations, pickup, room types, and market mix.
-          </p>
+          <div>
+            <p className="eyebrow">Hotel Revenue Intelligence</p>
+            <h1>AI Revenue Manager Agent</h1>
+            <p className="subtitle">
+              Ask business questions about revenue, ADR, OTA dependency,
+              cancellations, pickup, room types, and market mix.
+            </p>
+          </div>
 
           <button className="logoutButton" onClick={handleLogout}>
             Logout
           </button>
         </header>
 
-        <section className="card">
-          <label className="label">Ask the revenue manager</label>
+        <section className="card askCard">
+          <div className="cardTop">
+            <div>
+              <p className="label">Ask the revenue manager</p>
+              <h2 className="cardTitle">What would you like to analyse?</h2>
+            </div>
+          </div>
 
           <div className="inputRow">
             <input
@@ -160,60 +168,75 @@ function App() {
 
         {(loading || answer) && (
           <section className="answerCard">
-            <p className="answerLabel">Question</p>
-            <h2>{question}</h2>
+            <div className="questionBlock">
+              <p className="answerLabel">Question</p>
+              <h2>{question}</h2>
+            </div>
 
-            {!loading && (toolsUsed.length > 0 || skillsUsed.length > 0 || subagentsUsed.length > 0) && (
-              <div className="activityBox">
-                {toolsUsed.length > 0 && (
-                  <div>
-                    <p className="activityTitle">Tools used</p>
-                    <div className="pillRow">
-                      {toolsUsed.map((tool) => (
-                        <span className="pill" key={tool}>
-                          {tool}
-                        </span>
-                      ))}
-                    </div>
+            {!loading &&
+              (toolsUsed.length > 0 ||
+                skillsUsed.length > 0 ||
+                subagentsUsed.length > 0) && (
+                <div className="activityBox">
+                  <div className="activityGrid">
+                    {toolsUsed.length > 0 && (
+                      <div className="activitySection">
+                        <p className="activityTitle">Tools Used</p>
+                        <div className="pillRow">
+                          {toolsUsed.map((tool) => (
+                            <span className="pill" key={tool}>
+                              {tool}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {skillsUsed.length > 0 && (
+                      <div className="activitySection">
+                        <p className="activityTitle">Skills Used</p>
+                        <div className="pillRow">
+                          {skillsUsed.map((skill) => (
+                            <span className="pill skillPill" key={skill}>
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {subagentsUsed.length > 0 && (
+                      <div className="activitySection">
+                        <p className="activityTitle">Subagents Used</p>
+                        <div className="pillRow">
+                          {subagentsUsed.map((agent) => (
+                            <span className="pill subagentPill" key={agent}>
+                              {agent}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
 
-                {skillsUsed.length > 0 && (
-                  <div>
-                    <p className="activityTitle">Skills used</p>
-                    <div className="pillRow">
-                      {skillsUsed.map((skill) => (
-                        <span className="pill skillPill" key={skill}>
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {subagentsUsed.length > 0 && (
-  <div>
-    <p className="activityTitle">Subagents used</p>
-    <div className="pillRow">
-      {subagentsUsed.map((agent) => (
-        <span className="pill subagentPill" key={agent}>
-          {agent}
-        </span>
-      ))}
-    </div>
-  </div>
-)}
-              </div>
-            )}
+            <div className="answerBlock">
+              <p className="answerLabel">Answer</p>
 
-            <p className="answerLabel">Answer</p>
-
-            {loading ? (
-              <p className="loading">Analyzing hotel revenue data...</p>
-            ) : (
-              <div className="answerText">
-                <ReactMarkdown>{answer}</ReactMarkdown>
-              </div>
-            )}
+              {loading ? (
+                <div className="loadingBox">
+                  <span className="loadingDot" />
+                  <p className="loading">Analyzing hotel revenue data...</p>
+                </div>
+              ) : (
+                <div className="answerText">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {answer}
+                  </ReactMarkdown>
+                </div>
+              )}
+            </div>
           </section>
         )}
       </div>
